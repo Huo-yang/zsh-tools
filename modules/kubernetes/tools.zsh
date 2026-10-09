@@ -40,7 +40,10 @@ _zsh_tools_select_namespace() {
     print -u2 'Error: failed to query Kubernetes namespaces.'
     return 1
   fi
-  namespaces=("${(@f)output}")
+  namespaces=()
+  if [[ -n "$output" ]]; then
+    namespaces=("${(@f)output}")
+  fi
 
   if ((${#namespaces[@]} == 0)); then
     print '没有找到 namespace。'
@@ -85,7 +88,10 @@ kd() {
     print -u2 "Error: failed to query $resource in namespace '$namespace'."
     return 1
   fi
-  names=("${(@f)output}")
+  names=()
+  if [[ -n "$output" ]]; then
+    names=("${(@f)output}")
+  fi
 
   if ((${#names[@]} == 0)); then
     print "namespace '$namespace' 中没有找到 $resource。"
@@ -112,7 +118,10 @@ ksh() {
     print -u2 "Error: failed to query Pods in namespace '$namespace'."
     return 1
   fi
-  pods=("${(@f)output}")
+  pods=()
+  if [[ -n "$output" ]]; then
+    pods=("${(@f)output}")
+  fi
 
   if ((${#pods[@]} == 0)); then
     print "namespace '$namespace' 中没有运行中的 Pod。"
@@ -127,7 +136,10 @@ ksh() {
     print -u2 "Error: failed to query containers in Pod '$pod'."
     return 1
   fi
-  containers=("${(@f)output}")
+  containers=()
+  if [[ -n "$output" ]]; then
+    containers=("${(@f)output}")
+  fi
 
   if ((${#containers[@]} == 0)); then
     print "Pod '$pod' 中没有找到容器。"

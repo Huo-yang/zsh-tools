@@ -19,7 +19,7 @@ case "$1 $2" in
     print -l app sidecar
     ;;
   'get deployments')
-    print -l api web
+    [[ "${MOCK_EMPTY_RESOURCE:-}" == deployments ]] || print -l api web
     ;;
   'get statefulsets')
     print database
