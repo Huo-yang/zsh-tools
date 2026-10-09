@@ -48,7 +48,7 @@ zsh ./setup.zsh \
 
 - `~/.config/zsh-tools/` 中生成的加载配置。
 - `~/.local/bin/zsh-tools` 管理命令软链接。
-- `.zshrc` 中带有明确开始、结束标记的加载区块。
+- `.zshrc` 中内容固定、逐字校验的一行加载入口。
 - `~/.local/state/zsh-tools/` 中的状态、报告和备份。
 
 安装前会备份 `.zshrc`。安装器不会自动安装或卸载 `kubectl` 等系统软件，也不会接管主题、提示符、历史记录等其他 Zsh 配置。

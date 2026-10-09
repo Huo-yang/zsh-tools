@@ -7,8 +7,7 @@ typeset -gr ZT_CONFIG_DIR="${ZSH_TOOLS_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.co
 typeset -gr ZT_STATE_DIR="${ZSH_TOOLS_STATE_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh-tools}"
 typeset -gr ZT_BIN_DIR="${ZSH_TOOLS_BIN_HOME:-$HOME/.local/bin}"
 typeset -gr ZT_ZSHRC="${ZSH_TOOLS_ZSHRC:-${ZDOTDIR:-$HOME}/.zshrc}"
-typeset -gr ZT_MARKER_START='# >>> zsh-tools >>>'
-typeset -gr ZT_MARKER_END='# <<< zsh-tools <<<'
+typeset -gr ZT_MANAGED_TAG='# managed by zsh-tools'
 typeset -gr ZT_OWNER_FILE="$ZT_CONFIG_DIR/.managed-by-zsh-tools"
 
 typeset -ga ZT_MODULES
@@ -94,12 +93,30 @@ zt_command_conflicts() {
   print -r -- "${(j: :)conflicts}"
 }
 
-zt_validate_markers() {
-  [[ -r "$ZT_ZSHRC" ]] || return 0
-  local starts ends
-  starts="$(grep -Fxc -- "$ZT_MARKER_START" "$ZT_ZSHRC" 2>/dev/null || true)"
-  ends="$(grep -Fxc -- "$ZT_MARKER_END" "$ZT_ZSHRC" 2>/dev/null || true)"
-  [[ "$starts" == "$ends" && "$starts" -le 1 ]]
+zt_zshrc_target() {
+  if [[ -L "$ZT_ZSHRC" ]]; then
+    print -r -- "${ZT_ZSHRC:A}"
+  else
+    print -r -- "$ZT_ZSHRC"
+  fi
+}
+
+zt_zshrc_source_line() {
+  local init_file="$ZT_CONFIG_DIR/init.zsh"
+  print -r -- "[[ -r ${(qqq)init_file} ]] && source ${(qqq)init_file} $ZT_MANAGED_TAG"
+}
+
+zt_validate_managed_block() {
+  local target
+  target="$(zt_zshrc_target)"
+  [[ -r "$target" ]] || return 0
+
+  local tagged exact expected
+  expected="$(zt_zshrc_source_line)"
+  tagged="$(grep -Fc -- "$ZT_MANAGED_TAG" "$target" 2>/dev/null || true)"
+  exact="$(grep -Fxc -- "$expected" "$target" 2>/dev/null || true)"
+  [[ "$tagged" == 0 && "$exact" == 0 ]] ||
+    [[ "$tagged" == 1 && "$exact" == 1 ]]
 }
 
 zt_validate_paths() {
@@ -118,8 +135,8 @@ zt_validate_paths() {
     }
   fi
 
-  zt_validate_markers || {
-    zt_error "Managed markers in $ZT_ZSHRC are inconsistent."
+  zt_validate_managed_block || {
+    zt_error "Managed entry in $ZT_ZSHRC is duplicated or modified."
     return 1
   }
 }
@@ -129,10 +146,13 @@ zt_timestamp() {
 }
 
 zt_backup_zshrc() {
-  [[ -e "$ZT_ZSHRC" ]] || return 0
+  local target
+  target="$(zt_zshrc_target)"
+  [[ -e "$target" ]] || return 0
   mkdir -p -- "$ZT_STATE_DIR/backups"
-  local backup="$ZT_STATE_DIR/backups/zshrc-$(zt_timestamp)"
-  command cp -p -- "$ZT_ZSHRC" "$backup"
+  local backup
+  backup="$(mktemp "$ZT_STATE_DIR/backups/zshrc-$(zt_timestamp)-XXXXXX")"
+  command cp -p -- "$target" "$backup"
   print -r -- "$backup"
 }
 
@@ -183,14 +203,24 @@ zt_write_state() {
 }
 
 zt_install_zshrc_block() {
-  [[ -e "$ZT_ZSHRC" ]] || : > "$ZT_ZSHRC"
-  grep -Fqx -- "$ZT_MARKER_START" "$ZT_ZSHRC" && return 0
+  local target
+  target="$(zt_zshrc_target)"
+  local source_line
+  source_line="$(zt_zshrc_source_line)"
+  grep -Fqx -- "$source_line" "$target" 2>/dev/null && return 0
+
+  mkdir -p -- "${target:h}"
+  local temporary
+  temporary="$(mktemp "${target:h}/.zshrc.zsh-tools.XXXXXX")"
+  if [[ -e "$target" ]]; then
+    command cp -p -- "$target" "$temporary"
+  else
+    chmod 600 "$temporary"
+  fi
   {
-    print
-    print -r -- "$ZT_MARKER_START"
-    print -r -- '[[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/zsh-tools/init.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh-tools/init.zsh"'
-    print -r -- "$ZT_MARKER_END"
-  } >> "$ZT_ZSHRC"
+    print -r -- "$source_line"
+  } >> "$temporary"
+  command mv -- "$temporary" "$target"
 }
 
 zt_validate_loaded_commands() {
@@ -284,19 +314,21 @@ zt_read_enabled_modules() {
 }
 
 zt_remove_zshrc_block() {
-  [[ -r "$ZT_ZSHRC" ]] || return 0
-  local temporary="${ZT_ZSHRC}.zsh-tools.$$"
-  awk -v start="$ZT_MARKER_START" -v end="$ZT_MARKER_END" '
-    $0 == start { managed = 1; next }
-    $0 == end { managed = 0; next }
-    !managed { print }
-  ' "$ZT_ZSHRC" > "$temporary"
-  command mv -- "$temporary" "$ZT_ZSHRC"
+  local target
+  target="$(zt_zshrc_target)"
+  [[ -r "$target" ]] || return 0
+  local temporary
+  temporary="$(mktemp "${target:h}/.zshrc.zsh-tools.XXXXXX")"
+  local source_line
+  source_line="$(zt_zshrc_source_line)"
+  awk -v managed="$source_line" '$0 != managed { print }' "$target" > "$temporary"
+  chmod --reference="$target" "$temporary"
+  command mv -- "$temporary" "$target"
 }
 
 zt_uninstall() {
-  zt_validate_markers || {
-    zt_error "Managed markers in $ZT_ZSHRC are inconsistent; no files were changed."
+  zt_validate_managed_block || {
+    zt_error "Managed entry in $ZT_ZSHRC was modified; no files were changed."
     return 1
   }
   [[ -r "$ZT_OWNER_FILE" ]] || {
@@ -318,7 +350,7 @@ zt_uninstall() {
     zt_warn "Preserved non-managed files in $ZT_CONFIG_DIR"
 
   print 'Uninstallation summary'
-  zt_ok "Removed managed block from $ZT_ZSHRC"
+  zt_ok "Removed managed entry from $ZT_ZSHRC"
   zt_ok "Removed $ZT_CONFIG_DIR"
   zt_ok 'Preserved repository and external dependencies'
   [[ -n "$backup" ]] && zt_ok "Created backup: $backup"
@@ -363,8 +395,8 @@ zt_doctor() {
   print
   [[ -r "$ZT_OWNER_FILE" ]] && zt_ok 'Managed configuration found' ||
     { zt_error 'Managed configuration not found'; failures=1; }
-  zt_validate_markers && zt_ok '.zshrc markers are consistent' ||
-    { zt_error '.zshrc markers are inconsistent'; failures=1; }
+  zt_validate_managed_block && zt_ok '.zshrc managed entry is exact' ||
+    { zt_error '.zshrc managed entry is duplicated or modified'; failures=1; }
   [[ -L "$ZT_BIN_DIR/zsh-tools" ]] && zt_ok 'Management command link found' ||
     { zt_error 'Management command link not found'; failures=1; }
   zt_status || failures=1

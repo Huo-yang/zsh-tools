@@ -41,12 +41,24 @@ zsh "$repository_root/setup.zsh" \
 
 [[ -r "$ZSH_TOOLS_CONFIG_HOME/.managed-by-zsh-tools" ]]
 [[ -L "$ZSH_TOOLS_BIN_HOME/zsh-tools" ]]
-[[ "$(grep -Fxc '# >>> zsh-tools >>>' "$ZSH_TOOLS_ZSHRC")" == 1 ]]
+[[ "$(grep -Fc '# managed by zsh-tools' "$ZSH_TOOLS_ZSHRC")" == 1 ]]
+
+cp -p -- "$ZSH_TOOLS_ZSHRC" "$test_root/zshrc-valid"
+sed -i 's/^\[\[/true; [[/' "$ZSH_TOOLS_ZSHRC"
+if zsh "$repository_root/setup.zsh" --modules core --allow-conflicts >/dev/null 2>&1; then
+  print -u2 'Modified entry install test failed.'
+  return 1
+fi
+if zsh "$repository_root/setup.zsh" --uninstall --yes >/dev/null 2>&1; then
+  print -u2 'Modified entry uninstall test failed.'
+  return 1
+fi
+cp -p -- "$test_root/zshrc-valid" "$ZSH_TOOLS_ZSHRC"
 
 zsh "$repository_root/setup.zsh" \
   --modules core,kubernetes,wsl-proxy \
   --allow-conflicts
-[[ "$(grep -Fxc '# >>> zsh-tools >>>' "$ZSH_TOOLS_ZSHRC")" == 1 ]]
+[[ "$(grep -Fc '# managed by zsh-tools' "$ZSH_TOOLS_ZSHRC")" == 1 ]]
 
 zsh "$ZSH_TOOLS_BIN_HOME/zsh-tools" status
 zsh "$ZSH_TOOLS_BIN_HOME/zsh-tools" doctor
@@ -58,8 +70,16 @@ grep -q kubernetes "$ZSH_TOOLS_CONFIG_HOME/enabled-modules.zsh"
 zsh "$repository_root/setup.zsh" --uninstall --yes
 [[ ! -e "$ZSH_TOOLS_CONFIG_HOME" ]]
 [[ ! -e "$ZSH_TOOLS_BIN_HOME/zsh-tools" ]]
-! grep -Fq '# >>> zsh-tools >>>' "$ZSH_TOOLS_ZSHRC"
+! grep -Fq '# managed by zsh-tools' "$ZSH_TOOLS_ZSHRC"
 grep -Fq '# Existing user configuration' "$ZSH_TOOLS_ZSHRC"
+
+mv -- "$ZSH_TOOLS_ZSHRC" "$ZDOTDIR/real-zshrc"
+ln -s -- "$ZDOTDIR/real-zshrc" "$ZSH_TOOLS_ZSHRC"
+zsh "$repository_root/setup.zsh" --modules core --allow-conflicts >/dev/null
+[[ -L "$ZSH_TOOLS_ZSHRC" ]]
+zsh "$repository_root/setup.zsh" --uninstall --yes >/dev/null
+[[ -L "$ZSH_TOOLS_ZSHRC" ]]
+grep -Fq '# Existing user configuration' "$ZDOTDIR/real-zshrc"
 
 mkdir -p -- "$ZSH_TOOLS_CONFIG_HOME"
 print 'foreign configuration' > "$ZSH_TOOLS_CONFIG_HOME/user-file"
