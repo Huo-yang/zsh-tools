@@ -63,30 +63,53 @@ kgp() {
   command kubectl get pods --namespace "$namespace" --output wide
 }
 
-# Select a namespaced resource and describe it.
+# Discover an API resource, select an object, and describe it.
 kd() {
   _zsh_tools_require_kubectl || return
 
-  local namespace resource resource_name output
-  local -a resource_types names
-  resource_types=(
-    pods
-    deployments
-    statefulsets
-    services
-    ingresses
-    persistentvolumeclaims
-  )
+  local scope namespace='' resource resource_name output namespaced
+  local -a scopes resource_types names
+  scopes=(namespaced cluster)
 
-  _zsh_tools_select_namespace || return
-  namespace="$REPLY"
+  _zsh_tools_choose '请选择资源范围：' "${scopes[@]}" || return
+  scope="$REPLY"
+  if [[ "$scope" == namespaced ]]; then
+    namespaced=true
+    _zsh_tools_select_namespace || return
+    namespace="$REPLY"
+  else
+    namespaced=false
+  fi
+
+  if ! output="$(command kubectl api-resources --verbs=get,list \
+    --namespaced="$namespaced" -o name)"; then
+    print -u2 "Error: failed to discover $scope Kubernetes resources."
+    return 1
+  fi
+  resource_types=()
+  if [[ -n "$output" ]]; then
+    resource_types=("${(@f)output}")
+  fi
+  if ((${#resource_types[@]} == 0)); then
+    print "没有发现可查看的 $scope Kubernetes 资源。"
+    return 1
+  fi
+
   _zsh_tools_choose '请选择资源类型：' "${resource_types[@]}" || return
   resource="$REPLY"
 
-  if ! output="$(command kubectl get "$resource" --namespace "$namespace" \
-    -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"; then
-    print -u2 "Error: failed to query $resource in namespace '$namespace'."
-    return 1
+  if [[ "$scope" == namespaced ]]; then
+    if ! output="$(command kubectl get "$resource" --namespace "$namespace" \
+      -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"; then
+      print -u2 "Error: failed to query $resource in namespace '$namespace'."
+      return 1
+    fi
+  else
+    if ! output="$(command kubectl get "$resource" \
+      -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"; then
+      print -u2 "Error: failed to query cluster resource $resource."
+      return 1
+    fi
   fi
   names=()
   if [[ -n "$output" ]]; then
@@ -94,13 +117,21 @@ kd() {
   fi
 
   if ((${#names[@]} == 0)); then
-    print "namespace '$namespace' 中没有找到 $resource。"
+    if [[ "$scope" == namespaced ]]; then
+      print "namespace '$namespace' 中没有找到 $resource。"
+    else
+      print "集群中没有找到 $resource。"
+    fi
     return 1
   fi
 
   _zsh_tools_choose "请选择要查看的 $resource：" "${names[@]}" || return
   resource_name="$REPLY"
-  command kubectl describe "$resource" "$resource_name" --namespace "$namespace"
+  if [[ "$scope" == namespaced ]]; then
+    command kubectl describe "$resource" "$resource_name" --namespace "$namespace"
+  else
+    command kubectl describe "$resource" "$resource_name"
+  fi
 }
 
 # Select a namespace, running Pod, and container, then enter its shell.

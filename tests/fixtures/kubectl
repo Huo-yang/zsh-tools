@@ -5,6 +5,13 @@ emulate -L zsh
 setopt ERR_EXIT NO_UNSET
 
 case "$1 $2" in
+  'api-resources --verbs=get,list')
+    if [[ " $* " == *' --namespaced=true '* ]]; then
+      print -l pods deployments configmaps secrets
+    else
+      print -l nodes namespaces storageclasses.storage.k8s.io
+    fi
+    ;;
   'get namespaces')
     print -l dev test
     ;;
@@ -32,6 +39,15 @@ case "$1 $2" in
     ;;
   'get persistentvolumeclaims')
     print data
+    ;;
+  'get configmaps')
+    print application
+    ;;
+  'get secrets')
+    print credentials
+    ;;
+  'get nodes')
+    print node-a
     ;;
   'describe '*|'exec '*)
     print -r -- "$*" >> "$MOCK_KUBECTL_LOG"

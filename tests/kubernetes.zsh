@@ -15,17 +15,26 @@ touch "$MOCK_KUBECTL_LOG"
 
 source "$repository_root/modules/kubernetes/tools.zsh"
 
-print -l 1 2 1 | kd >/dev/null
+print -l 1 1 2 1 | kd >/dev/null
 grep -Fqx 'describe deployments api --namespace dev' "$MOCK_KUBECTL_LOG"
 
 export MOCK_EMPTY_RESOURCE=deployments
 typeset empty_output
-if empty_output="$(print -l 1 2 | kd 2>&1)"; then
+if empty_output="$(print -l 1 1 2 | kd 2>&1)"; then
   print -u2 'Empty resource test unexpectedly succeeded.'
   return 1
 fi
 [[ "$empty_output" == *"namespace 'dev' 中没有找到 deployments。"* ]]
 unset MOCK_EMPTY_RESOURCE
+
+print -l 1 1 3 1 | kd >/dev/null
+grep -Fqx 'describe configmaps application --namespace dev' "$MOCK_KUBECTL_LOG"
+
+print -l 1 1 4 1 | kd >/dev/null
+grep -Fqx 'describe secrets credentials --namespace dev' "$MOCK_KUBECTL_LOG"
+
+print -l 2 1 1 | kd >/dev/null
+grep -Fqx 'describe nodes node-a' "$MOCK_KUBECTL_LOG"
 
 print -l 1 2 1 | ksh >/dev/null
 grep -Fqx 'exec --stdin --tty --namespace dev pod-b --container app -- sh' \

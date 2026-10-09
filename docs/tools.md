@@ -22,14 +22,12 @@ kubectl get pods --namespace <namespace> --output wide
 
 ### `kd`
 
-依次选择 namespace、资源类型和资源，然后执行 `kubectl describe`。当前支持：
+通过 Kubernetes API discovery 动态读取当前集群支持的资源，然后执行 `kubectl describe`。可以选择：
 
-- Pod
-- Deployment
-- StatefulSet
-- Service
-- Ingress
-- PVC
+- namespace 范围的资源，例如 Pod、Deployment、StatefulSet、DaemonSet、Service、Ingress、ConfigMap、Secret、Job、CronJob、PVC 和 ServiceAccount。
+- 集群范围的资源，例如 Node、Namespace、PersistentVolume、StorageClass、ClusterRole 和 CustomResourceDefinition。
+
+支持范围不使用硬编码列表，因此能覆盖当前 Kubernetes 版本公开的全部可读取资源，也会包含集群中已经安装的 CRD。查看 Secret 时只调用 `kubectl describe`，不会自动解码或打印 Secret 数据。
 
 ### `ksh`
 
