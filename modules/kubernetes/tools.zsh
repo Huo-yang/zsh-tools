@@ -185,6 +185,24 @@ _zsh_tools_select_container() {
 ksh() {
   _zsh_tools_require_kubectl || return
 
+  local shell_name=sh
+  while (($#)); do
+    case "$1" in
+      -b|--bash)
+        shell_name=bash
+        shift
+        ;;
+      --help|-h)
+        print 'Usage: ksh [-b|--bash]'
+        return 0
+        ;;
+      *)
+        print -u2 "Error: unknown ksh option: $1"
+        return 2
+        ;;
+    esac
+  done
+
   local namespace pod container
   _zsh_tools_select_namespace || return
   namespace="$REPLY"
@@ -193,9 +211,9 @@ ksh() {
   _zsh_tools_select_container "$namespace" "$pod" || return
   container="$REPLY"
 
-  print "正在进入 $namespace/$pod（容器：$container）……"
+  print "正在通过 $shell_name 进入 $namespace/$pod（容器：$container）……"
   command kubectl exec --stdin --tty --namespace "$namespace" "$pod" \
-    --container "$container" -- sh
+    --container "$container" -- "$shell_name"
 }
 
 # Select a Pod and container, then show its logs.

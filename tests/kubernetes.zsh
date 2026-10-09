@@ -40,6 +40,15 @@ print -l 1 2 1 | ksh >/dev/null
 grep -Fqx 'exec --stdin --tty --namespace dev pod-b --container app -- sh' \
   "$MOCK_KUBECTL_LOG"
 
+print -l 1 1 2 | ksh --bash >/dev/null
+grep -Fqx 'exec --stdin --tty --namespace dev pod-a --container sidecar -- bash' \
+  "$MOCK_KUBECTL_LOG"
+
+if ksh --zsh >/dev/null 2>&1; then
+  print -u2 'Unknown ksh option test failed.'
+  return 1
+fi
+
 print -l 1 2 1 | kl --tail 50 --since 10m >/dev/null
 grep -Fqx 'logs --namespace dev pod-b --container app --tail 50 --since 10m' \
   "$MOCK_KUBECTL_LOG"

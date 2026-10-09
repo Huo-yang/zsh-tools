@@ -31,7 +31,20 @@ kubectl get pods --namespace <namespace> --output wide
 
 ### `ksh`
 
-依次选择 namespace、运行中的 Pod 和容器，然后通过 `sh` 进入容器。使用 `ksh` 而不是 `kexec`，避免覆盖 Linux 原生的 `kexec` 系统命令。
+依次选择 namespace、运行中的 Pod 和容器。默认通过 `sh` 进入容器：
+
+```zsh
+ksh
+```
+
+容器中安装了 Bash 时，可以明确指定：
+
+```zsh
+ksh --bash
+ksh -b
+```
+
+命令不会在 Bash 不存在时自动回退，`kubectl exec` 会直接显示容器返回的错误。使用 `ksh` 而不是 `kexec`，可以避免覆盖 Linux 原生的 `kexec` 系统命令。
 
 ### `kl`
 
