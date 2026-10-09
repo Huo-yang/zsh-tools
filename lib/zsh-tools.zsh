@@ -82,8 +82,9 @@ zt_command_conflicts() {
   local -a conflicts=()
   local -a allowed_shadows=(${=ZT_MODULE_ALLOW_COMMAND_SHADOWS[$id]})
   for command_name in ${=ZT_MODULE_COMMANDS[$id]}; do
-    existing="$(whence -w "$command_name" 2>/dev/null || true)"
-    [[ -z "$existing" ]] && continue
+    if ! existing="$(whence -w "$command_name" 2>/dev/null)"; then
+      continue
+    fi
     if [[ "$existing" == "$command_name: command" ]] &&
       (( ${allowed_shadows[(Ie)$command_name]} )); then
       continue

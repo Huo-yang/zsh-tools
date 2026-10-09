@@ -29,6 +29,18 @@ zsh "$repository_root/tests/kubernetes.zsh"
 (
   source "$repository_root/lib/zsh-tools.zsh"
   zt_registry_load
+  local id
+  for id in "${ZT_MODULES[@]}"; do
+    [[ -z "$(zt_command_conflicts "$id")" ]] || {
+      print -u2 "Clean environment conflict test failed for $id."
+      return 1
+    }
+  done
+)
+
+(
+  source "$repository_root/lib/zsh-tools.zsh"
+  zt_registry_load
   kgp() { return 0; }
   if zt_install false kubernetes >/dev/null 2>&1; then
     print -u2 'Conflict test failed.'
