@@ -1,0 +1,7 @@
+MODULE_ID='wsl-proxy'
+MODULE_NAME='WSL proxy'
+MODULE_DESCRIPTION='Session-scoped WSL proxy helpers'
+MODULE_COMMANDS=(wsl_proxy_on wsl_proxy_off)
+MODULE_ALLOW_COMMAND_SHADOWS=()
+MODULE_DEPENDENCIES=(ip)
+MODULE_PLATFORMS=(wsl)

@@ -1,0 +1,7 @@
+MODULE_ID='core'
+MODULE_NAME='Core aliases'
+MODULE_DESCRIPTION='Common interactive aliases'
+MODULE_COMMANDS=(ls grep ll la l)
+MODULE_ALLOW_COMMAND_SHADOWS=(ls grep)
+MODULE_DEPENDENCIES=()
+MODULE_PLATFORMS=(linux wsl)

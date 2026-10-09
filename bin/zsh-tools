@@ -1,0 +1,39 @@
+#!/usr/bin/env zsh
+
+# Manage an installed zsh-tools configuration.
+emulate -L zsh
+setopt ERR_EXIT NO_UNSET PIPE_FAIL
+
+typeset -gr ZSH_TOOLS_ROOT="${0:A:h:h}"
+source "$ZSH_TOOLS_ROOT/lib/zsh-tools.zsh"
+zt_registry_load
+
+usage() {
+  print 'Usage: zsh-tools <command> [module]'
+  print
+  print 'Commands:'
+  print '  status              Show installed module status'
+  print '  list                List available modules and commands'
+  print '  doctor              Validate installation and dependencies'
+  print '  enable <module>     Enable an installed module'
+  print '  disable <module>    Disable an installed module'
+  print '  uninstall           Remove managed configuration'
+}
+
+case "${1:-}" in
+  status) zt_status ;;
+  list) zt_list ;;
+  doctor) zt_doctor ;;
+  enable|disable)
+    (($# == 2)) || { usage >&2; exit 2; }
+    zt_set_module_state "$1" "$2"
+    ;;
+  uninstall)
+    local answer
+    printf '卸载 zsh-tools 管理的配置？仓库和外部依赖会保留。[y/N] '
+    read -r answer
+    [[ "$answer" == [yY] ]] && zt_uninstall || zt_info 'Cancelled.'
+    ;;
+  help|--help|-h|'') usage ;;
+  *) zt_error "Unknown command: $1"; usage >&2; exit 2 ;;
+esac
