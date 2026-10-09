@@ -24,6 +24,7 @@ while IFS= read -r -d '' file; do
   zsh -n "$file"
 done < <(find "$repository_root" -type f -name '*.zsh' ! -path '*/tests/*' -print0)
 zsh -n "$repository_root/bin/zsh-tools"
+zsh "$repository_root/tests/kubernetes.zsh"
 
 (
   source "$repository_root/lib/zsh-tools.zsh"

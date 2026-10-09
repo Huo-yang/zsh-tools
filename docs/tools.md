@@ -20,9 +20,20 @@
 kubectl get pods --namespace <namespace> --output wide
 ```
 
-### `kexec`
+### `kd`
 
-依次选择 namespace、运行中的 Pod 和容器，然后通过 `sh` 进入容器。
+依次选择 namespace、资源类型和资源，然后执行 `kubectl describe`。当前支持：
+
+- Pod
+- Deployment
+- StatefulSet
+- Service
+- Ingress
+- PVC
+
+### `ksh`
+
+依次选择 namespace、运行中的 Pod 和容器，然后通过 `sh` 进入容器。使用 `ksh` 而不是 `kexec`，避免覆盖 Linux 原生的 `kexec` 系统命令。
 
 如果没有安装 `kubectl`，命令会返回明确错误；如果集群查询失败，会保留 `kubectl` 的原始错误并停止，不会误报为资源为空。
 

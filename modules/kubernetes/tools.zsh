@@ -31,11 +31,9 @@ _zsh_tools_require_kubectl() {
   fi
 }
 
-# Select a namespace and show its Pods.
-kgp() {
-  _zsh_tools_require_kubectl || return
-
-  local namespace output
+# Select a Kubernetes namespace and return it in REPLY.
+_zsh_tools_select_namespace() {
+  local output
   local -a namespaces
   if ! output="$(command kubectl get namespaces \
     -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"; then
@@ -49,30 +47,63 @@ kgp() {
     return 1
   fi
 
-  _zsh_tools_choose '请选择 namespace：' "${namespaces[@]}" || return
+  _zsh_tools_choose '请选择 namespace：' "${namespaces[@]}"
+}
+
+# Select a namespace and show its Pods.
+kgp() {
+  _zsh_tools_require_kubectl || return
+
+  local namespace
+  _zsh_tools_select_namespace || return
   namespace="$REPLY"
   command kubectl get pods --namespace "$namespace" --output wide
 }
 
+# Select a namespaced resource and describe it.
+kd() {
+  _zsh_tools_require_kubectl || return
+
+  local namespace resource resource_name output
+  local -a resource_types names
+  resource_types=(
+    pods
+    deployments
+    statefulsets
+    services
+    ingresses
+    persistentvolumeclaims
+  )
+
+  _zsh_tools_select_namespace || return
+  namespace="$REPLY"
+  _zsh_tools_choose '请选择资源类型：' "${resource_types[@]}" || return
+  resource="$REPLY"
+
+  if ! output="$(command kubectl get "$resource" --namespace "$namespace" \
+    -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"; then
+    print -u2 "Error: failed to query $resource in namespace '$namespace'."
+    return 1
+  fi
+  names=("${(@f)output}")
+
+  if ((${#names[@]} == 0)); then
+    print "namespace '$namespace' 中没有找到 $resource。"
+    return 1
+  fi
+
+  _zsh_tools_choose "请选择要查看的 $resource：" "${names[@]}" || return
+  resource_name="$REPLY"
+  command kubectl describe "$resource" "$resource_name" --namespace "$namespace"
+}
+
 # Select a namespace, running Pod, and container, then enter its shell.
-kexec() {
+ksh() {
   _zsh_tools_require_kubectl || return
 
   local namespace pod container output
-  local -a namespaces pods containers
-  if ! output="$(command kubectl get namespaces \
-    -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"; then
-    print -u2 'Error: failed to query Kubernetes namespaces.'
-    return 1
-  fi
-  namespaces=("${(@f)output}")
-
-  if ((${#namespaces[@]} == 0)); then
-    print '没有找到 namespace。'
-    return 1
-  fi
-
-  _zsh_tools_choose '请选择 namespace：' "${namespaces[@]}" || return
+  local -a pods containers
+  _zsh_tools_select_namespace || return
   namespace="$REPLY"
 
   if ! output="$(command kubectl get pods --namespace "$namespace" \

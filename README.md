@@ -9,7 +9,7 @@
 | 模块 | 工具 | 外部依赖 |
 | --- | --- | --- |
 | `core` | `ls`、`grep`、`ll`、`la`、`l` | 无 |
-| `kubernetes` | `kgp`、`kexec` | `kubectl` |
+| `kubernetes` | `kgp`、`kd`、`ksh` | `kubectl` |
 | `wsl-proxy` | `wsl_proxy_on`、`wsl_proxy_off` | `ip`、WSL |
 
 ## 快速开始

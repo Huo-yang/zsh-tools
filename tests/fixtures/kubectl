@@ -1,0 +1,43 @@
+#!/usr/bin/env zsh
+
+# Provide deterministic kubectl responses for tests.
+emulate -L zsh
+setopt ERR_EXIT NO_UNSET
+
+case "$1 $2" in
+  'get namespaces')
+    print -l dev test
+    ;;
+  'get pods')
+    if [[ " $* " == *' --field-selector=status.phase=Running '* ]]; then
+      print -l pod-a pod-b
+    else
+      print 'NAME READY STATUS'
+    fi
+    ;;
+  'get pod')
+    print -l app sidecar
+    ;;
+  'get deployments')
+    print -l api web
+    ;;
+  'get statefulsets')
+    print database
+    ;;
+  'get services')
+    print api
+    ;;
+  'get ingresses')
+    print public
+    ;;
+  'get persistentvolumeclaims')
+    print data
+    ;;
+  'describe '*|'exec '*)
+    print -r -- "$*" >> "$MOCK_KUBECTL_LOG"
+    ;;
+  *)
+    print -u2 -- "Unexpected kubectl arguments: $*"
+    return 2
+    ;;
+esac
