@@ -40,6 +40,19 @@ print -l 1 2 1 | ksh >/dev/null
 grep -Fqx 'exec --stdin --tty --namespace dev pod-b --container app -- sh' \
   "$MOCK_KUBECTL_LOG"
 
+print -l 1 2 1 | kl --tail 50 --since 10m >/dev/null
+grep -Fqx 'logs --namespace dev pod-b --container app --tail 50 --since 10m' \
+  "$MOCK_KUBECTL_LOG"
+
+print -l 1 1 2 | kl --follow >/dev/null
+grep -Fqx 'logs --namespace dev pod-a --container sidecar --tail 200 --follow' \
+  "$MOCK_KUBECTL_LOG"
+
+if kl --follow --previous >/dev/null 2>&1; then
+  print -u2 'Incompatible log options test failed.'
+  return 1
+fi
+
 if whence -w kexec >/dev/null 2>&1; then
   print -u2 'kexec must not be defined by the Kubernetes module.'
   return 1

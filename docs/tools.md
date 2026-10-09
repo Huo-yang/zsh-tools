@@ -33,6 +33,25 @@ kubectl get pods --namespace <namespace> --output wide
 
 依次选择 namespace、运行中的 Pod 和容器，然后通过 `sh` 进入容器。使用 `ksh` 而不是 `kexec`，避免覆盖 Linux 原生的 `kexec` 系统命令。
 
+### `kl`
+
+依次选择 namespace、运行中的 Pod 和容器，然后查看日志。默认显示最近 200 行：
+
+```zsh
+kl
+```
+
+支持常用日志参数：
+
+```zsh
+kl --tail 500
+kl --since 10m
+kl -f
+kl --previous
+```
+
+`--follow` 和 `--previous` 不能同时使用，避免产生无效的 `kubectl logs` 调用。
+
 如果没有安装 `kubectl`，命令会返回明确错误；如果集群查询失败，会保留 `kubectl` 的原始错误并停止，不会误报为资源为空。
 
 ## WSL proxy

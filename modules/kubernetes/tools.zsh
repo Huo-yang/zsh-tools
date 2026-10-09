@@ -134,15 +134,10 @@ kd() {
   fi
 }
 
-# Select a namespace, running Pod, and container, then enter its shell.
-ksh() {
-  _zsh_tools_require_kubectl || return
-
-  local namespace pod container output
-  local -a pods containers
-  _zsh_tools_select_namespace || return
-  namespace="$REPLY"
-
+# Select a running Pod in a namespace and return it in REPLY.
+_zsh_tools_select_running_pod() {
+  local namespace="$1" output
+  local -a pods
   if ! output="$(command kubectl get pods --namespace "$namespace" \
     --field-selector=status.phase=Running \
     -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"; then
@@ -160,8 +155,12 @@ ksh() {
   fi
 
   _zsh_tools_choose "请选择 $namespace 中的 Pod：" "${pods[@]}" || return
-  pod="$REPLY"
+}
 
+# Select a container in a Pod and return it in REPLY.
+_zsh_tools_select_container() {
+  local namespace="$1" pod="$2" output
+  local -a containers
   if ! output="$(command kubectl get pod "$pod" --namespace "$namespace" \
     -o jsonpath='{range .spec.containers[*]}{.name}{"\n"}{end}')"; then
     print -u2 "Error: failed to query containers in Pod '$pod'."
@@ -176,13 +175,92 @@ ksh() {
     print "Pod '$pod' 中没有找到容器。"
     return 1
   elif ((${#containers[@]} == 1)); then
-    container="${containers[1]}"
+    REPLY="${containers[1]}"
   else
-    _zsh_tools_choose "请选择 $pod 中的容器：" "${containers[@]}" || return
-    container="$REPLY"
+    _zsh_tools_choose "请选择 $pod 中的容器：" "${containers[@]}"
   fi
+}
+
+# Select a namespace, running Pod, and container, then enter its shell.
+ksh() {
+  _zsh_tools_require_kubectl || return
+
+  local namespace pod container
+  _zsh_tools_select_namespace || return
+  namespace="$REPLY"
+  _zsh_tools_select_running_pod "$namespace" || return
+  pod="$REPLY"
+  _zsh_tools_select_container "$namespace" "$pod" || return
+  container="$REPLY"
 
   print "正在进入 $namespace/$pod（容器：$container）……"
   command kubectl exec --stdin --tty --namespace "$namespace" "$pod" \
     --container "$container" -- sh
+}
+
+# Select a Pod and container, then show its logs.
+kl() {
+  _zsh_tools_require_kubectl || return
+
+  local follow=false previous=false tail_lines=200 since=''
+  while (($#)); do
+    case "$1" in
+      -f|--follow)
+        follow=true
+        shift
+        ;;
+      -p|--previous)
+        previous=true
+        shift
+        ;;
+      --tail)
+        (($# >= 2)) || {
+          print -u2 'Error: --tail requires a positive integer.'
+          return 2
+        }
+        tail_lines="$2"
+        shift 2
+        ;;
+      --since)
+        (($# >= 2)) || {
+          print -u2 'Error: --since requires a duration such as 10m or 1h.'
+          return 2
+        }
+        since="$2"
+        shift 2
+        ;;
+      --help|-h)
+        print 'Usage: kl [-f|--follow] [-p|--previous] [--tail LINES] [--since DURATION]'
+        return 0
+        ;;
+      *)
+        print -u2 "Error: unknown kl option: $1"
+        return 2
+        ;;
+    esac
+  done
+
+  [[ "$tail_lines" == <-> && "$tail_lines" -gt 0 ]] || {
+    print -u2 'Error: --tail requires a positive integer.'
+    return 2
+  }
+  if [[ "$follow" == true && "$previous" == true ]]; then
+    print -u2 'Error: --follow and --previous cannot be used together.'
+    return 2
+  fi
+
+  local namespace pod container
+  local -a args
+  _zsh_tools_select_namespace || return
+  namespace="$REPLY"
+  _zsh_tools_select_running_pod "$namespace" || return
+  pod="$REPLY"
+  _zsh_tools_select_container "$namespace" "$pod" || return
+  container="$REPLY"
+
+  args=(logs --namespace "$namespace" "$pod" --container "$container" --tail "$tail_lines")
+  [[ -n "$since" ]] && args+=(--since "$since")
+  [[ "$previous" == true ]] && args+=(--previous)
+  [[ "$follow" == true ]] && args+=(--follow)
+  command kubectl "${args[@]}"
 }

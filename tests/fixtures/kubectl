@@ -49,7 +49,7 @@ case "$1 $2" in
   'get nodes')
     print node-a
     ;;
-  'describe '*|'exec '*)
+  'describe '*|'exec '*|'logs '*)
     print -r -- "$*" >> "$MOCK_KUBECTL_LOG"
     ;;
   *)
